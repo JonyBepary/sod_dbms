@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"mime/multipart"
 
 	"fmt"
 	"io/ioutil"
@@ -11,18 +12,20 @@ import (
 )
 
 type Voter struct {
-	NID     string `json:"nid"`
-	Name    string `json:"name"`
-	PSCODE  string `json:"pscode"`
-	Address address
-	Digest  string `json:"digest"`
-	SIGN    string `json:"signature"`
+	Profile        *multipart.FileHeader `form:"avatar" binding:"required"`
+	NID            string                `form:"nid"`
+	Name           string                `form:"name"`
+	PSCODE         string                `form:"pscode"`
+	Address        address
+	Profile_Digest string `form:"profile_digest"`
+	Digest         string `form:"digest"`
+	SIGN           string `form:"signature"`
 }
 type address struct {
-	Union    string `json:"union"`
-	Thana    string `json:"thana"`
-	District string `json:"district"`
-	PO       string `json:"PO"`
+	Union    string `form:"union"`
+	Thana    string `form:"thana"`
+	District string `form:"district"`
+	PO       string `form:"PO"`
 }
 
 // Initialize voter data in struct
@@ -65,14 +68,30 @@ func init_voter(voter *Voter, c *gin.Context) {
 		return
 	}
 
+	// Avatar management
+	if err := c.ShouldBind(voter); err != nil {
+		c.String(http.StatusBadRequest, "Bad Request")
+		return
+	}
+
+	// saved profile pic at avatar_pic_path
+	avatar_pic_path := "data/assets/" + voter.Profile.Filename
+	err := c.SaveUploadedFile(voter.Profile, avatar_pic_path)
+	if err != nil {
+		c.String(http.StatusInternalServerError, "unknown error")
+		return
+	}
+
+	// add a hash of profile pic for main digest
+	voter.Profile_Digest = filehashGeneration(avatar_pic_path)
+
+	// creates a hash digest of all the data parsed from query params and body
+	voter.Digest = digestGeneration(voter)
+	// check if private key availble in local directory
 	if !isFileAvailable("./privateKey") {
 		c.String(http.StatusNotAcceptable, "KeyNotAvailable")
 		return
 	}
-
-	// create hash digest of all the data parsed from query params
-	voter.Digest = digestGeneration(voter)
-
 	// with a private key it signs the digest
 	//(means it encrypts to be decrypted by it's respective public key)
 	voter.SIGN = generate_signature(voter.Digest)
@@ -84,6 +103,7 @@ func add_vote(c *gin.Context) {
 	// create voter object
 	voter := new(Voter)
 	init_voter(voter, c)
+
 	hashstr := filenameGeneration(voter.NID, voter.PSCODE)
 	file, _ := json.MarshalIndent(voter, "", " ")
 	filename := "data/" + hashstr
