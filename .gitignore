@@ -1,6 +1,4 @@
 blocks/genesis.json
-data/36455c73fbe474b14c82961054dd5cf11196f2b23c38951593048dd15ba0db2e
-data/c809344ad4c4afc334c3789a1d3c6a914b311d9c4ad29b28cc6acd3c9fb46b54
 sword_of_durant/Api FOC_1.pdf
 sword_of_durant/exec
 sword_of_durant/privateKey
@@ -12,3 +10,4 @@ sword_of_durant.tar.gz
 test1.ggoo
 privateKey
 publickey
+data/*
