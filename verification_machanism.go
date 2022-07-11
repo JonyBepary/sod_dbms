@@ -58,9 +58,17 @@ func GenerateKeyPairTofile() {
 
 func digestGeneration(voter *Voter) string {
 	digest := sha256.New()
-	digest.Write([]byte(fmt.Sprintf("%v", voter)))
+	digest.Write([]byte(fmt.Sprintf("%v", voter.NID)))
+	digest.Write([]byte(fmt.Sprintf("%v", voter.Name)))
+	digest.Write([]byte(fmt.Sprintf("%v", voter.PSCODE)))
+	digest.Write([]byte(fmt.Sprintf("%v", voter.Address.Union)))
+	digest.Write([]byte(fmt.Sprintf("%v", voter.Address.Thana)))
+	digest.Write([]byte(fmt.Sprintf("%v", voter.Address.District)))
+	digest.Write([]byte(fmt.Sprintf("%v", voter.Profile_Digest)))
+
 	return fmt.Sprintf("%x", digest.Sum(nil))
 }
+
 func filenameGeneration(NID string, PSCODE string) string {
 	hash := sha256.New()
 	hash.Write([]byte(fmt.Sprint(NID)))
