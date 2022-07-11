@@ -120,6 +120,8 @@ func main() {
 
 	router := gin.Default()
 
+	//Serving public key for digital signature authentication.
+	router.StaticFile("/sword_of_durant/publickey", "./publickey")
 	//  Query string parameters are parsed using the existing underlying request object.
 	// *The request responds to a url matching:
 	// /sword_of_durant?nid=20215103018&pscode=12345678
@@ -129,15 +131,14 @@ func main() {
 	// * The request responds to a url matching:
 	// /sword_of_durant?nid=20215103018&name=Sohel Ahmed Jony&pscode=12345678&PO=Naodoba&union=Naodoba&thana=Janjira&district=Shariatpur
 	router.POST("/sword_of_durant", add_vote)
-	//
-
 	router.Run(":8888")
 }
-	// todo1: add api pass public key
-	// todo2: add img support
-	//? router := gin.Default()
-	//? router.Static("/image", "./path-to-image-dir")
-	// todo3: separate folder for each data
-	// todo4: reduce filename size
-	//? base20, would that hamper performance
-	// todo5: add a authentication mechanism facilitate[].(RO, PA, PO)
+
+//! todo1: add api pass public key
+// todo2: add img support
+//? router := gin.Default()
+//? router.Static("/image", "./path-to-image-dir")
+// todo3: separate folder for each data
+// todo4: reduce filename size
+//? base20, would that hamper performance
+// todo5: add a authentication mechanism facilitate[].(RO, PA, PO)
