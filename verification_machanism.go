@@ -75,3 +75,12 @@ func filenameGeneration(NID string, PSCODE string) string {
 	hash.Write([]byte(fmt.Sprint(PSCODE)))
 	return fmt.Sprintf("%x", hash.Sum(nil))
 }
+func filehashGeneration(filename string) string {
+	hash := sha256.New()
+	file, err := ioutil.ReadFile(filename)
+	if err != nil {
+		return ""
+	}
+	hash.Write([]byte(fmt.Sprintf("%v", file)))
+	return fmt.Sprintf("%x", hash.Sum(nil))
+}
