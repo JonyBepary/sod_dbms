@@ -162,7 +162,7 @@ func main() {
 	// *The request responds to a url matching:
 	// /sword_of_durant?nid=20215103018&pscode=12345678
 	router.GET("/sword_of_durant", hid_my_call)
-	router.GET("/makekeypair", generatek)
+	router.GET("/makekeypair", makekeypair)
 
 	// Query string parameters are parsed using the existing underlying request object.
 	// * The request responds to a url matching:
