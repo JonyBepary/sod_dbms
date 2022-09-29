@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"mime/multipart"
+	"os"
 
 	"fmt"
 	"io/ioutil"
@@ -74,6 +75,9 @@ func init_voter(voter *Voter, c *gin.Context) {
 		return
 	}
 
+	if !isFileAvailable("data/assets/") {
+		os.Mkdir("data/assets/", os.ModePerm)
+	}
 	// saved profile pic at avatar_pic_path
 	avatar_pic_path := "data/assets/" + voter.Profile.Filename
 	err := c.SaveUploadedFile(voter.Profile, avatar_pic_path)
@@ -100,12 +104,16 @@ func init_voter(voter *Voter, c *gin.Context) {
 
 func add_vote(c *gin.Context) {
 
+	if !isFileAvailable("data/") {
+		os.Mkdir("data/", os.ModePerm)
+	}
 	// create voter object
 	voter := new(Voter)
 	init_voter(voter, c)
 
 	hashstr := filenameGeneration(voter.NID, voter.PSCODE)
 	file, _ := json.MarshalIndent(voter, "", " ")
+
 	filename := "data/" + hashstr
 	ioutil.WriteFile(filename, file, 0644)
 	fmt.Println(filename)
@@ -135,7 +143,15 @@ func hid_my_call(c *gin.Context) {
 	json.Unmarshal(file, voter)          //copy voter data from file to struct object
 	c.IndentedJSON(http.StatusOK, voter) //*serve it to over api request
 }
+func makekeypair(c *gin.Context) {
+	if GenerateKeyPairTofile() {
+		c.String(http.StatusOK, "Key_genaration! successfull")
+	} else {
 
+		c.String(http.StatusNotAcceptable, "Key_genaration! Unsuccessfull")
+	}
+
+}
 func main() {
 
 	router := gin.Default()
@@ -146,6 +162,7 @@ func main() {
 	// *The request responds to a url matching:
 	// /sword_of_durant?nid=20215103018&pscode=12345678
 	router.GET("/sword_of_durant", hid_my_call)
+	router.GET("/makekeypair", generatek)
 
 	// Query string parameters are parsed using the existing underlying request object.
 	// * The request responds to a url matching:
