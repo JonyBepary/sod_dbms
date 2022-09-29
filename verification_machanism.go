@@ -18,7 +18,7 @@ func isFileAvailable(filename string) bool {
 	return !info.IsDir()
 }
 
-//Generate signature for each given digest
+// Generate signature for each given digest
 func generate_signature(digest string) string {
 
 	// provision key pair
@@ -46,13 +46,14 @@ func generate_signature(digest string) string {
 
 }
 
-func GenerateKeyPairTofile() {
+func GenerateKeyPairTofile() bool {
 	privateKey, publicKey, err := crypto.GenerateKeyPair()
 	if err != nil {
-		panic(err)
+		return false
 	}
 	ioutil.WriteFile("publickey", publicKey, 0644)
 	ioutil.WriteFile("privateKey", privateKey, 0644)
+	return true
 
 }
 
