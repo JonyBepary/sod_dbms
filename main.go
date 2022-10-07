@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"path/filepath"
 
 	"github.com/gin-gonic/gin"
 )
@@ -79,7 +80,7 @@ func init_voter(voter *Voter, c *gin.Context) {
 		os.Mkdir("data/assets/", os.ModePerm)
 	}
 	// saved profile pic at avatar_pic_path
-	avatar_pic_path := "data/assets/" + voter.Profile.Filename
+	avatar_pic_path := "data/assets/" + filenameGeneration(voter.NID, voter.PSCODE) + filepath.Ext(voter.Profile.Filename)
 	err := c.SaveUploadedFile(voter.Profile, avatar_pic_path)
 	if err != nil {
 		c.String(http.StatusInternalServerError, "unknown error")
@@ -98,12 +99,11 @@ func init_voter(voter *Voter, c *gin.Context) {
 	}
 	// with a private key it signs the digest
 	//(means it encrypts to be decrypted by it's respective public key)
-	voter.SIGN = generate_signature(voter.Digest)
+	voter.SIGN = generate_signature("./privateKey", voter.Digest)
 
 }
 
 func add_vote(c *gin.Context) {
-
 	if !isFileAvailable("data/") {
 		os.Mkdir("data/", os.ModePerm)
 	}
@@ -143,15 +143,15 @@ func hid_my_call(c *gin.Context) {
 	json.Unmarshal(file, voter)          //copy voter data from file to struct object
 	c.IndentedJSON(http.StatusOK, voter) //*serve it to over api request
 }
+
 func makekeypair(c *gin.Context) {
-	if GenerateKeyPairTofile() {
-		c.String(http.StatusOK, "Key_genaration! successfull")
+	if GenerateKeyPairTofile("./") {
+		c.String(http.StatusOK, "key pair generated\n")
 	} else {
-
-		c.String(http.StatusNotAcceptable, "Key_genaration! Unsuccessfull")
+		c.String(http.StatusBadRequest, "Failed to generate key pair\n")
 	}
-
 }
+
 func main() {
 
 	router := gin.Default()
@@ -162,6 +162,7 @@ func main() {
 	// *The request responds to a url matching:
 	// /sword_of_durant?nid=20215103018&pscode=12345678
 	router.GET("/sword_of_durant", hid_my_call)
+	router.Static("/sword_of_durant/data/assets", "./data/assets")
 	router.GET("/makekeypair", makekeypair)
 
 	// Query string parameters are parsed using the existing underlying request object.
