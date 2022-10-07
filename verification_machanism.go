@@ -1,13 +1,16 @@
 package main
 
 import (
+	"crypto/elliptic"
+	"crypto/rand"
 	"crypto/sha256"
+	"encoding/base64"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
 
-	"github.com/purnaresa/bulwark/crypto"
+	"github.com/libp2p/go-libp2p/core/crypto"
 )
 
 func isFileAvailable(filename string) bool {
@@ -18,43 +21,118 @@ func isFileAvailable(filename string) bool {
 	return !info.IsDir()
 }
 
+
 // Generate signature for each given digest
-func generate_signature(digest string) string {
+func generate_signature_of_a_file(target, privkeyfile, sig_destination string) []byte {
 
 	// provision key pair
-	privateKey, err := ioutil.ReadFile("./privateKey")
+	cprivateKey, err := ioutil.ReadFile(privkeyfile)
 	if err != nil {
 		panic(err)
 	}
-
-	digestByte := []byte(digest)
-	signature, err := crypto.SignDefault(digestByte, privateKey)
+	privateKey, err := crypto.UnmarshalECDSAPrivateKey(cprivateKey)
+	data, err := ioutil.ReadFile(target)
 	if err != nil {
-		log.Fatalln(err)
+		panic(err)
 	}
-	return string(signature)
-	// else {
-	// 	log.Printf("signature : %s\n\n", string(signature))
-	// } // verify signature
-	// log.Println("verifying signature and plaintext...")
-	// errVerify := crypto.VerifyDefault(digestByte, publicKey, signature)
-	// if errVerify != nil {
-	// 	log.Fatalln(errVerify)
-	// } else {
-	// 	log.Println("verification success!")
-	// }
+	signature, err := privateKey.Sign([]byte(data))
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("signature: %v\n", signature)
+	ioutil.WriteFile(sig_destination, signature, 0644)
+	return signature
 
 }
 
-func GenerateKeyPairTofile() bool {
-	privateKey, publicKey, err := crypto.GenerateKeyPair()
+// Generate signature for each given digest
+func generate_signature_of_a_string_to_file(digest, privkeyfile, sig_destination string) []byte {
+
+	// provision key pair
+	cprivateKey, err := ioutil.ReadFile(privkeyfile)
+	if err != nil {
+		panic(err)
+	}
+	privateKey, err := crypto.UnmarshalECDSAPrivateKey(cprivateKey)
+	if err != nil {
+		panic(err)
+	}
+	signature, err := privateKey.Sign([]byte(digest))
+	if err != nil {
+		panic(err)
+	}
+	ioutil.WriteFile(sig_destination, signature, 0644)
+	return signature
+
+}
+
+// Generate signature for each given digest
+func generate_signature_of_a_string(digest, privkeyfile string) []byte {
+
+	// provision key pair
+	cprivateKey, err := ioutil.ReadFile(privkeyfile)
+	if err != nil {
+		panic(err)
+	}
+	privateKey, err := crypto.UnmarshalECDSAPrivateKey(cprivateKey)
+	if err != nil {
+		panic(err)
+	}
+	signature, err := privateKey.Sign([]byte(digest))
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("signature: %v\n", signature)
+	return signature
+
+}
+
+func GenerateKeyPairTofile(file string) bool {
+	privateKey, publicKey, err := crypto.GenerateECDSAKeyPairWithCurve(elliptic.P384(), rand.Reader)
 	if err != nil {
 		return false
 	}
-	ioutil.WriteFile("publickey", publicKey, 0644)
-	ioutil.WriteFile("privateKey", privateKey, 0644)
-	return true
+	cpublicKey, err := publicKey.Raw()
+	if err != nil {
+		return false
+	}
+	cprivateKey, err := privateKey.Raw()
+	if err != nil {
+		return false
+	}
+	privateKey.Sign(cpublicKey)
 
+	err = ioutil.WriteFile(file+"publickey", cpublicKey, 0644)
+	if err != nil {
+		return false
+	}
+
+	err = ioutil.WriteFile(file+"privateKey", cprivateKey, 0644)
+	return err == nil
+
+}
+
+func string_hash_generation(str string) string {
+	digest := sha256.New()
+	digest.Write([]byte(fmt.Sprintf("%s", str)))
+	return fmt.Sprintf("%x", digest.Sum(nil))
+}
+
+func filenameGeneration(NID string, PSCODE string) string {
+	hash := sha256.New()
+	hash.Write([]byte(fmt.Sprint(NID)))
+	hash.Write([]byte(fmt.Sprint(PSCODE)))
+	return fmt.Sprintf("%x", hash.Sum(nil))
+}
+
+func filehashGeneration(filename string) string {
+	hash := sha256.New()
+	file, err := ioutil.ReadFile(filename)
+	if err != nil {
+		return ""
+	}
+	hash.Write([]byte(fmt.Sprintf("%v", file)))
+	return fmt.Sprintf("%x", hash.Sum(nil))
 }
 
 func digestGeneration(voter *Voter) string {
@@ -70,18 +148,21 @@ func digestGeneration(voter *Voter) string {
 	return fmt.Sprintf("%x", digest.Sum(nil))
 }
 
-func filenameGeneration(NID string, PSCODE string) string {
-	hash := sha256.New()
-	hash.Write([]byte(fmt.Sprint(NID)))
-	hash.Write([]byte(fmt.Sprint(PSCODE)))
-	return fmt.Sprintf("%x", hash.Sum(nil))
-}
-func filehashGeneration(filename string) string {
-	hash := sha256.New()
-	file, err := ioutil.ReadFile(filename)
+func generate_signature(privkeyfile, digest string) string {
+
+	// provision key pair
+
+	cprivateKey, err := ioutil.ReadFile(privkeyfile)
 	if err != nil {
-		return ""
+		panic(err)
 	}
-	hash.Write([]byte(fmt.Sprintf("%v", file)))
-	return fmt.Sprintf("%x", hash.Sum(nil))
+	privateKey, err := crypto.UnmarshalECDSAPrivateKey(cprivateKey)
+	if err != nil {
+		panic(err)
+	}
+	signature, err := privateKey.Sign([]byte(digest))
+	if err != nil {
+		panic(err)
+	}
+	return base64.StdEncoding.EncodeToString(signature)
 }
