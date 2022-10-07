@@ -7,7 +7,6 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"os"
 
 	"github.com/libp2p/go-libp2p/core/crypto"
@@ -20,7 +19,6 @@ func isFileAvailable(filename string) bool {
 	}
 	return !info.IsDir()
 }
-
 
 // Generate signature for each given digest
 func generate_signature_of_a_file(target, privkeyfile, sig_destination string) []byte {

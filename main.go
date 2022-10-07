@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"log"
 	"mime/multipart"
 	"os"
 
@@ -72,7 +73,7 @@ func init_voter(voter *Voter, c *gin.Context) {
 
 	// Avatar management
 	if err := c.ShouldBind(voter); err != nil {
-		c.String(http.StatusBadRequest, "Bad Request")
+		c.String(http.StatusBadRequest, "Bad Request\n")
 		return
 	}
 
@@ -83,7 +84,7 @@ func init_voter(voter *Voter, c *gin.Context) {
 	avatar_pic_path := "data/assets/" + filenameGeneration(voter.NID, voter.PSCODE) + filepath.Ext(voter.Profile.Filename)
 	err := c.SaveUploadedFile(voter.Profile, avatar_pic_path)
 	if err != nil {
-		c.String(http.StatusInternalServerError, "unknown error")
+		c.String(http.StatusInternalServerError, "SaveUploadedFile error")
 		return
 	}
 
@@ -94,7 +95,7 @@ func init_voter(voter *Voter, c *gin.Context) {
 	voter.Digest = digestGeneration(voter)
 	// check if private key availble in local directory
 	if !isFileAvailable("./privateKey") {
-		c.String(http.StatusNotAcceptable, "KeyNotAvailable")
+		c.String(http.StatusNotAcceptable, "KeyNotAvailable\n")
 		return
 	}
 	// with a private key it signs the digest
@@ -112,12 +113,16 @@ func add_vote(c *gin.Context) {
 	init_voter(voter, c)
 
 	hashstr := filenameGeneration(voter.NID, voter.PSCODE)
+	filename := "data/" + hashstr
+	if isFileAvailable(filename) {
+		c.String(http.StatusBadRequest, "Unsuccessful, Voter already exist!!!")
+		return
+	}
 	file, _ := json.MarshalIndent(voter, "", " ")
 
-	filename := "data/" + hashstr
 	ioutil.WriteFile(filename, file, 0644)
 	fmt.Println(filename)
-	c.String(http.StatusOK, "Voter Succesfully added!!!")
+	c.String(http.StatusOK, "Voter successfully added!!!")
 
 }
 
@@ -151,13 +156,25 @@ func makekeypair(c *gin.Context) {
 		c.String(http.StatusBadRequest, "Failed to generate key pair\n")
 	}
 }
+func list_voter(c *gin.Context) {
+	file, err := ioutil.ReadDir("data/")
+	if err != nil {
+		log.Fatal(err)
+	}
+	for _, v := range file {
+		if !v.IsDir() {
+			fmt.Println(v.Name())
+		}
+	}
 
+}
 func main() {
 
 	router := gin.Default()
 
 	//Serving public key for digital signature authentication.
 	router.StaticFile("/sword_of_durant/publickey", "./publickey")
+	router.GET("/list_voter", list_voter)
 	//  Query string parameters are parsed using the existing underlying request object.
 	// *The request responds to a url matching:
 	// /sword_of_durant?nid=20215103018&pscode=12345678
