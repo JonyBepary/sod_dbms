@@ -19,6 +19,13 @@ func isFileAvailable(filename string) bool {
 	}
 	return !info.IsDir()
 }
+func isDirAvailable(filename string) bool {
+	_, err := os.Stat(filename)
+	if os.IsNotExist(err) {
+		return false
+	}
+	return true
+}
 
 // Generate signature for each given digest
 func generate_signature_of_a_file(target, privkeyfile, sig_destination string) []byte {
@@ -143,7 +150,7 @@ func digestGeneration(voter *Voter) string {
 	digest.Write([]byte(fmt.Sprintf("%v", voter.Address.District)))
 	digest.Write([]byte(fmt.Sprintf("%v", voter.Profile_Digest)))
 
-	return fmt.Sprintf("%x", digest.Sum(nil))
+	return fmt.Sprintf("%v", digest.Sum(nil))
 }
 
 func generate_signature(privkeyfile, digest string) string {
