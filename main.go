@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/sha256"
 	"encoding/json"
 	"log"
 	"mime/multipart"
@@ -29,6 +30,13 @@ type address struct {
 	Thana    string `form:"thana"`
 	District string `form:"district"`
 	PO       string `form:"PO"`
+}
+type nid struct {
+	Voters    []string `json:"voters"`
+	Pscode    string   `json:"pscode"`
+	Seed      string   `json:"seed"`
+	Digest    string   `json:"digest"`
+	Signature string   `json:"signature"`
 }
 
 // Initialize voter data in struct
@@ -77,7 +85,10 @@ func init_voter(voter *Voter, c *gin.Context) {
 		return
 	}
 
-	if !isFileAvailable("data/assets/") {
+	if !isDirAvailable("data/") {
+		os.Mkdir("data/", os.ModePerm)
+	}
+	if !isDirAvailable("data/assets/") {
 		os.Mkdir("data/assets/", os.ModePerm)
 	}
 	// saved profile pic at avatar_pic_path
@@ -105,21 +116,24 @@ func init_voter(voter *Voter, c *gin.Context) {
 }
 
 func add_vote(c *gin.Context) {
-	if !isFileAvailable("data/") {
-		os.Mkdir("data/", os.ModePerm)
-	}
 	// create voter object
 	voter := new(Voter)
 	init_voter(voter, c)
 
+	filename := "data/" + voter.PSCODE + "/"
+	if !isFileAvailable(filename) {
+		os.Mkdir(filename, os.ModePerm)
+	}
 	hashstr := filenameGeneration(voter.NID, voter.PSCODE)
-	filename := "data/" + hashstr
+	filename += hashstr
 	if isFileAvailable(filename) {
-		c.String(http.StatusBadRequest, "Unsuccessful, Voter already exist!!!")
+		c.String(http.StatusConflict, "Unsuccessful, Voter already exist!!!")
 		return
 	}
-	file, _ := json.MarshalIndent(voter, "", " ")
-
+	file, err := json.MarshalIndent(voter, "", " ")
+	if err != nil {
+		c.String(http.StatusInternalServerError, "Unsuccessfully, Data marshaling error!!!")
+	}
 	ioutil.WriteFile(filename, file, 0644)
 	fmt.Println(filename)
 	c.String(http.StatusOK, "Voter successfully added!!!")
@@ -137,7 +151,7 @@ func hid_my_call(c *gin.Context) {
 	// generating hash from parsed data (nid, pscode)
 	// filename is as same as hash
 	hashstr := filenameGeneration(NID, PSCODE)
-	filename := "data/" + hashstr //? adjusting file path
+	filename := "data/" + PSCODE + "_" + hashstr //? adjusting file path
 	if !isFileAvailable(filename) {
 		c.String(http.StatusNotFound, "Entity, Not Found!")
 		return
@@ -148,6 +162,38 @@ func hid_my_call(c *gin.Context) {
 	json.Unmarshal(file, voter)          //copy voter data from file to struct object
 	c.IndentedJSON(http.StatusOK, voter) //*serve it to over api request
 }
+func remove_voter(c *gin.Context) {
+
+	// parsing params from url query
+	NID := c.DefaultQuery("nid", "Guest")
+	PSCODE := c.Query("pscode") // shortcut for c.Request.URL.Query().Get("lastname")
+
+	// generating hash from parsed data (nid, pscode)
+	// filename is as same as hash
+	hashstr := filenameGeneration(NID, PSCODE)
+
+	filename := "data/" + PSCODE + "_" + hashstr //? adjusting file path
+	if !isFileAvailable(filename) {
+		c.String(http.StatusNotFound, "Entity, Not Found!")
+	} else {
+		err := os.Remove(filename)
+		if err != nil {
+			log.Println("Failed to remove: ", filename)
+			return
+		}
+	}
+
+	filename = "data/assets" + PSCODE + "_" + hashstr //? adjusting file path
+	if !isFileAvailable(filename) {
+		c.String(http.StatusNotFound, "Entity, Not Found!")
+		return
+	}
+	err := os.Remove(filename)
+	if err != nil {
+		log.Println("Failed to remove: ", filename)
+		return
+	}
+}
 
 func makekeypair(c *gin.Context) {
 	if GenerateKeyPairTofile("./") {
@@ -157,15 +203,41 @@ func makekeypair(c *gin.Context) {
 	}
 }
 func list_voter(c *gin.Context) {
-	file, err := ioutil.ReadDir("data/")
+	PSCODE := c.Query("pscode") // shortcut for c.Request.URL.Query().Get("lastname")
+	PSCODE := c.Query("seed")   // shortcut for c.Request.URL.Query().Get("lastname")
+	filename := "data/" + PSCODE + "/"
+	if !isDirAvailable(filename) {
+		c.String(http.StatusBadRequest, fmt.Sprintf("No enity found on PSCODE: %s\n", PSCODE))
+		return
+	}
+	list := new(nid)
+	file, err := ioutil.ReadDir("data/" + PSCODE)
 	if err != nil {
 		log.Fatal(err)
 	}
+	fmt.Println(len(file))
+	digest := sha256.New()
 	for _, v := range file {
 		if !v.IsDir() {
-			fmt.Println(v.Name())
+			list.Voters = append(list.Voters, v.Name())
+			digest.Write([]byte(fmt.Sprintf("%v", list.Voters[len(list.Voters)-1])))
 		}
 	}
+	// for i := 0; i < len(list.Voters); i++ {
+	// 	fmt.Println(list.Voters[i])
+	// }
+	list.Digest = fmt.Sprintf("%x", digest.Sum(nil))
+	list.Signature = generate_signature("privateKey", list.Digest)
+	list.Pscode = PSCODE
+	list.Seed = "5669"
+	// json_byte, _ := json.Marshal(list)
+	if err != nil {
+		c.String(http.StatusExpectationFailed, "Failed to process json from struct") //*serve it to over api request
+		return
+	}
+	// json.Unmarshal(json_byte, list)
+	// fmt.Println(json_byte)
+	c.IndentedJSON(http.StatusOK, list) //*serve it to over api request
 
 }
 func main() {
