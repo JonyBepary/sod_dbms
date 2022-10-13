@@ -151,7 +151,7 @@ func hid_my_call(c *gin.Context) {
 	// generating hash from parsed data (nid, pscode)
 	// filename is as same as hash
 	hashstr := filenameGeneration(NID, PSCODE)
-	filename := "data/" + PSCODE + "_" + hashstr //? adjusting file path
+	filename := "data/" + PSCODE + "/" + hashstr //? adjusting file path
 	if !isFileAvailable(filename) {
 		c.String(http.StatusNotFound, "Entity, Not Found!")
 		return
@@ -172,7 +172,7 @@ func remove_voter(c *gin.Context) {
 	// filename is as same as hash
 	hashstr := filenameGeneration(NID, PSCODE)
 
-	filename := "data/" + PSCODE + "_" + hashstr //? adjusting file path
+	filename := "data/" + PSCODE + "/" + hashstr //? adjusting file path
 	if !isFileAvailable(filename) {
 		c.String(http.StatusNotFound, "Entity, Not Found!")
 	} else {
@@ -183,7 +183,7 @@ func remove_voter(c *gin.Context) {
 		}
 	}
 
-	filename = "data/assets" + PSCODE + "_" + hashstr //? adjusting file path
+	filename = "data/assets/" + hashstr //? adjusting file path
 	if !isFileAvailable(filename) {
 		c.String(http.StatusNotFound, "Entity, Not Found!")
 		return
@@ -204,7 +204,7 @@ func makekeypair(c *gin.Context) {
 }
 func list_voter(c *gin.Context) {
 	PSCODE := c.Query("pscode") // shortcut for c.Request.URL.Query().Get("lastname")
-	PSCODE := c.Query("seed")   // shortcut for c.Request.URL.Query().Get("lastname")
+	Seed := c.Query("seed")     // shortcut for c.Request.URL.Query().Get("lastname")
 	filename := "data/" + PSCODE + "/"
 	if !isDirAvailable(filename) {
 		c.String(http.StatusBadRequest, fmt.Sprintf("No enity found on PSCODE: %s\n", PSCODE))
@@ -223,13 +223,12 @@ func list_voter(c *gin.Context) {
 			digest.Write([]byte(fmt.Sprintf("%v", list.Voters[len(list.Voters)-1])))
 		}
 	}
-	// for i := 0; i < len(list.Voters); i++ {
-	// 	fmt.Println(list.Voters[i])
-	// }
+	list.Pscode = PSCODE
+	list.Seed = Seed
+	digest.Write([]byte(fmt.Sprintf("%v", list.Pscode)))
+	digest.Write([]byte(fmt.Sprintf("%v", list.Seed)))
 	list.Digest = fmt.Sprintf("%x", digest.Sum(nil))
 	list.Signature = generate_signature("privateKey", list.Digest)
-	list.Pscode = PSCODE
-	list.Seed = "5669"
 	// json_byte, _ := json.Marshal(list)
 	if err != nil {
 		c.String(http.StatusExpectationFailed, "Failed to process json from struct") //*serve it to over api request
@@ -246,7 +245,11 @@ func main() {
 
 	//Serving public key for digital signature authentication.
 	router.StaticFile("/sword_of_durant/publickey", "./publickey")
+	//take a pscode and a seed return list of voter on that specific
 	router.GET("/list_voter", list_voter)
+
+	//take a pscode and a nid number to remove a voter from list
+	router.GET("/remove_voter", remove_voter)
 	//  Query string parameters are parsed using the existing underlying request object.
 	// *The request responds to a url matching:
 	// /sword_of_durant?nid=20215103018&pscode=12345678
